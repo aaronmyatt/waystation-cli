@@ -53,7 +53,7 @@ async function runCmd(cmd: string, args: string[], cwd: string): Promise<string 
   // Command API doesn't expose a per-process timeout, so we race child.output()
   // against a timer and clear whichever loses. Clearing the timer in finally
   // is critical — otherwise the test runner sees a "leaked timer".
-  let timer: number | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const child = new Deno.Command(cmd, {
       args,
