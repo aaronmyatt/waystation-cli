@@ -1,0 +1,21 @@
+# Deno
+.deno/
+deno.lock
+
+# Test artifacts
+/tmp/
+*.db
+*.db-wal
+*.db-shm
+*-backup-*.db
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Built / generated
+dist/
+coverage/
