@@ -210,26 +210,45 @@ export async function checkpoint(): Promise<void> {
 }
 
 /**
- * Run a `.sql` script file against the current database. Used to apply
- * `schema.sql` during initialisation.
+ * Apply SQL DDL to the current database.
+ *
+ * Accepts either a filesystem path to a `.sql` file (legacy mode, detected
+ * by checking if the string looks like a file path) or an inline SQL string.
+ * The inline mode is the primary path for JSR consumers, who don't have
+ * access to the on-disk `schema.sql` file and instead import the bundled
+ * {@linkcode ../mod.ts:schemaSql} string.
+ *
+ * @param sql - Either a path to a `.sql` file or SQL text to execute.
+ *              If the string contains newlines or doesn't pass `Deno.stat`,
+ *              it is treated as inline SQL.
  */
-export async function applySchemaFile(schemaPath: string): Promise<void> {
-  try {
-    await Deno.stat(schemaPath);
-  } catch {
-    throw new Error(`Schema file not found: ${schemaPath}`);
+export async function applySchemaFile(sql: string): Promise<void> {
+  // Heuristic: if the string has no newlines and the file exists on disk,
+  // treat it as a file path (backward-compatible with existing callers).
+  const isFile = !sql.includes('\n') && await Deno.stat(sql).then(() => true).catch(() => false);
+
+  if (isFile) {
+    logger.log(`[sqlite] Applying schema from file: ${sql}`);
+    const { stderr, code } = await runSqlite([dbPath], { stdinFile: sql });
+    if (code !== 0) {
+      throw new Error(`Schema apply failed (exit ${code}): ${stderr.trim()}`);
+    }
+    if (stderr && stderr.trim() && !stderr.includes('Parse error')) {
+      logger.warn('[sqlite] Schema warning:', stderr.trim());
+    }
+    logger.log('[sqlite] Schema applied successfully');
+    return;
   }
 
-  logger.log(`[sqlite] Applying schema from: ${schemaPath}`);
-
-  const { stderr, code } = await runSqlite([dbPath], { stdinFile: schemaPath });
+  // Inline SQL mode: pipe the string directly into sqlite3 via stdin.
+  logger.log(`[sqlite] Applying inline schema (${sql.length} chars)`);
+  const { stderr, code } = await runSqlite([dbPath], { stdin: sql });
   if (code !== 0) {
     throw new Error(`Schema apply failed (exit ${code}): ${stderr.trim()}`);
   }
   if (stderr && stderr.trim() && !stderr.includes('Parse error')) {
     logger.warn('[sqlite] Schema warning:', stderr.trim());
   }
-
   logger.log('[sqlite] Schema applied successfully');
 }
 
@@ -261,23 +280,38 @@ async function tempSqlFile(content: string): Promise<string> {
 }
 
 /**
- * Run sqlite3 with stdin coming from a file. Captures stdout/stderr and
- * enforces the 10 MiB stdout cap by slicing on read.
+ * Run sqlite3 with stdin coming from a file or an inline string. Captures
+ * stdout/stderr and enforces the 10 MiB stdout cap by slicing on read.
  */
 async function runSqlite(
   args: string[],
-  opts: { stdinFile: string },
+  opts: { stdinFile?: string; stdin?: string },
 ): Promise<{ stdout: string; stderr: string; code: number }> {
-  // We invoke /bin/sh so we can use the `<` redirect — Deno.Command can pipe
-  // stdin programmatically, but the upstream Node version uses shell input
-  // redirection and it's the simplest path to feature parity.
-  const command = `sqlite3 ${args.map(shellEscape).join(' ')} < ${shellEscape(opts.stdinFile)}`;
+  // Resolve the input source: if `stdin` (inline string) is given, write it
+  // to a temp file so we use the same shell-redirect path. This avoids
+  // maintaining a separate pipe-based code path and keeps quoting consistent.
+  let stdinFile = opts.stdinFile;
+  let tempFile: string | undefined;
+  if (!stdinFile && opts.stdin !== undefined) {
+    tempFile = await tempSqlFile(opts.stdin);
+    stdinFile = tempFile;
+  }
+  if (!stdinFile) throw new Error('runSqlite: either stdinFile or stdin is required');
+
+  const command = `sqlite3 ${args.map(shellEscape).join(' ')} < ${shellEscape(stdinFile)}`;
   const cmd = new Deno.Command('/bin/sh', {
     args: ['-c', command],
     stdout: 'piped',
     stderr: 'piped',
   });
   const { stdout, stderr, code } = await cmd.output();
+
+  // Clean up the temp file if we created one.
+  if (tempFile) {
+    try { await Deno.remove(tempFile); } catch { /* best-effort */ }
+    try { await Deno.remove(join(tempFile, '..')); } catch { /* best-effort */ }
+  }
+
   const decoder = new TextDecoder();
   let out = decoder.decode(stdout);
   if (out.length > MAX_BUFFER_BYTES) {

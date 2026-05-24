@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────────────────────
-// @waystation/core — public library entry point.
+// @atm/waystation-cli — public library entry point.
 //
 // Re-exports the surface that downstream consumers (the VS Code extension,
 // the future agentic-session runner, etc.) are intended to use. Anything
@@ -70,30 +70,31 @@ export { pullTableRecords, pushTableRecords } from './pipelines/sync.ts';
 export type { PullCtx, PushCtx } from './pipelines/sync.ts';
 
 // ── Schema accessor ──────────────────────────────────────────────────────
-import { dirname, fromFileUrl, join } from '@std/path';
+import { SCHEMA_SQL } from './schema.ts';
 
 /**
- * Filesystem path to the bundled `schema.sql`. Use with
- * {@linkcode applySchemaFile} or read directly when bootstrapping a custom
- * DB lifecycle (e.g. an in-memory test harness).
+ * The canonical SQL DDL as a string, bundled so it works in JSR and Deno
+ * environments where filesystem access to `schema.sql` may not be available.
+ * Use with {@linkcode applySchemaFile} or read directly when bootstrapping
+ * a custom DB lifecycle (e.g. an in-memory test harness).
  *
  * @example
- *   import { schemaSqlPath, applySchemaFile, initializeCli } from '@waystation/core';
+ *   import { schemaSql, applySchemaFile, initializeCli } from '@atm/waystation-cli';
  *   await initializeCli('/tmp/test.db');
- *   await applySchemaFile(schemaSqlPath);
+ *   await applySchemaFile(schemaSql);
  */
-export const schemaSqlPath: string = join(
-  dirname(fromFileUrl(import.meta.url)),
-  '..',
-  'schema.sql',
-);
+export const schemaSql: string = SCHEMA_SQL;
+
+// Re-export the raw SCHEMA_SQL constant directly too, in case consumers
+// imported from the sub-export `@atm/waystation-cli/schema`.
+export { SCHEMA_SQL } from './schema.ts';
 
 // ── REPL examples ────────────────────────────────────────────────────────
 // import {
 //   Pipeline, jp, P,
 //   initDatabase, buildFlowAggregate, exportMarkdown,
 //   insertFlow,
-// } from '@waystation/core';
+// } from '@atm/waystation-cli';
 //
 // // 1. Bootstrap + create + render
 // await initDatabase.process({ dbPath: '/tmp/way.db' });

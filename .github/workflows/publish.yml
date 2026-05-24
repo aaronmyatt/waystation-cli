@@ -1,0 +1,40 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Publish to JSR on every new release.
+#
+# Triggered by pushing a tag matching `v*.*.*`. The JSR publish action
+# handles authentication via the `JSR_TOKEN` secret, which must be set in
+# the GitHub repository settings (Settings → Secrets and variables →
+# Actions). Generate a token at https://jsr.io/@atm/settings/tokens.
+#
+# JSR inspects the package's deno.json metadata (name, version, exports,
+# publish.include/exclude) to determine what gets published. No separate
+# build step is needed — JSR accepts TypeScript/Deno source directly.
+#
+# References:
+#   • JSR publishing docs: https://jsr.io/docs/publishing-packages
+#   • jsr/publish action:   https://github.com/marketplace/actions/jsr-publish
+#   • GitHub release tags:  https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#release
+# ──────────────────────────────────────────────────────────────────────────
+
+name: Publish to JSR
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for JSR provenance (OIDC)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish to JSR
+        uses: jsr-publish-action@v1
+        with:
+          token: ${{ secrets.JSR_TOKEN }}

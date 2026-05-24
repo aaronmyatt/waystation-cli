@@ -1,4 +1,4 @@
-# waystation-cli (`@waystation/core`)
+# waystation-cli (`@atm/waystation-cli`)
 
 > Capture the route you took through a codebase, replay it later.
 
@@ -74,15 +74,13 @@ way --help
 
 ### As a library
 
-Once published to JSR:
-
 ```ts
 import {
   initDatabase,
   insertFlow,
   buildFlowAggregate,
   exportMarkdown,
-} from 'jsr:@waystation/core';
+} from 'jsr:@atm/waystation-cli';
 ```
 
 Locally, import from `src/mod.ts` directly.
@@ -299,5 +297,5 @@ state is touched.
 
 ## License
 
-MIT (pending `LICENSE` file). Vendored `pipeline.ts` and `jsonpointer.ts` are
-MIT-licensed in their upstream repositories.
+MIT. Vendored `pipeline.ts` and `jsonpointer.ts` are MIT-licensed in their
+upstream repositories.

@@ -30,6 +30,7 @@ import {
   type Logger,
 } from '../db/sqlite.ts';
 import { runAsync } from '../db/helpers.ts';
+import { SCHEMA_SQL } from '../schema.ts';
 
 /** Maximum number of timestamped backups to retain on disk. */
 const MAX_BACKUPS_TO_RETAIN = 10;
@@ -66,13 +67,21 @@ async function resolvePaths(ctx: InitCtx): Promise<InitCtx> {
   const storageDir = ctx.storageDir ?? (home ? join(home, '.waystation') : Deno.cwd());
   const dbPath = ctx.dbPath ?? join(storageDir, 'way.db');
 
-  // Default the schema path to the schema.sql shipped alongside the package.
-  // import.meta.url points to *this* file; up two dirs is the package root.
-  // https://docs.deno.com/api/web/~/ImportMeta
-  const defaultSchemaPath = ctx.schemaPath ??
+  // Resolve the schema source. When a custom schemaPath is provided, use
+  // that file. Otherwise default to the bundled SCHEMA_SQL string — this
+  // ensures the package works both when schema.sql is on disk (local dev)
+  // and when it isn't (JSR consumers, who get the bundled string from
+  // src/schema.ts).
+  const schemaPath = ctx.schemaPath ??
     join(dirname(dirname(fromFileUrl(import.meta.url))), '..', 'schema.sql');
 
-  return { ...ctx, storageDir, dbPath, schemaPath: defaultSchemaPath };
+  // Check if the default file path actually exists — if not, fall back to
+  // the bundled string. This handles JSR installs where schema.sql is not
+  // extracted to disk.
+  const schemaOnDisk = await Deno.stat(schemaPath).then(() => true).catch(() => false);
+  const schemaForCtx = schemaOnDisk ? schemaPath : SCHEMA_SQL;
+
+  return { ...ctx, storageDir, dbPath, schemaPath: schemaForCtx };
 }
 
 async function ensureStorageDir(ctx: InitCtx): Promise<InitCtx> {

@@ -1,9 +1,11 @@
 {
-  "name": "@waystation/core",
+  "name": "@atm/waystation-cli",
   "version": "0.0.1",
+  "description": "Capture the route you took through a codebase, replay it later. A CLI + Deno library for building flows from code references, notes, and links.",
+  "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
-    "./schema": "./schema.sql"
+    "./schema": "./src/schema.ts"
   },
   "tasks": {
     "test": "deno test --allow-read --allow-write --allow-env --allow-run",
