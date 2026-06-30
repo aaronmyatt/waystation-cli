@@ -8,6 +8,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { initializeCli } from '../db/sqlite.ts';
+import { resolveFlowId } from '../flows/crud.ts';
 import { exportMarkdown } from '../pipelines/exportMarkdown.ts';
 import { prettyPrintMarkdown } from '../flows/renderTerminal.ts';
 import { defaultDbPath } from './_common.ts';
@@ -29,6 +30,11 @@ export async function exportCommand(
     );
   }
   await initializeCli(opts.dbPath ?? defaultDbPath());
+
+  // Resolve the user-supplied argument to a concrete flow id.
+  // Handles both raw UUIDs and partial name substrings — same resolver
+  // that `way show` uses, so `way export "TASK-161"` works identically.
+  flowId = await resolveFlowId(flowId);
 
   const { markdown } = await exportMarkdown.process({
     flowId,

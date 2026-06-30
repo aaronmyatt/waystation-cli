@@ -79,6 +79,44 @@ export async function renameFlow(id: string, name: string): Promise<void> {
 // await renameFlow('some-uuid', 'A better title');
 
 /**
+ * Resolve a user-supplied search string to a flow id.
+ *
+ * Resolution order (first match wins):
+ *   1. Exact UUID match — `WHERE id = ?` (fast path for copy-pasted ids).
+ *   2. Partial name match — `WHERE name LIKE '%search%'` ordered by
+ *      `updated_at DESC LIMIT 1`, so the most recently touched flow wins
+ *      when multiple flows contain the substring.
+ *
+ * This is intentionally a substring match, not exact — "TASK-161" should
+ * match "TASK-161-BoardOverview SWR". Callers that need exact-name
+ * disambiguation can use `way list --plain | grep` + the returned UUID.
+ *
+ * @throws If no non-archived flow matches the search string.
+ */
+export async function resolveFlowId(search: string): Promise<string> {
+  // 1. Try exact UUID match first — most precise, no ambiguity.
+  const byId = await getAsync<{ id: string }>(
+    'SELECT id FROM flows WHERE id = ? AND archived = 0',
+    [search],
+  );
+  if (byId) return byId.id;
+
+  // 2. Partial name substring match, newest-updated first.
+  // `LIKE` with `%` wildcards on both sides — the caller's search can
+  // appear anywhere in the flow name.
+  const byName = await getAsync<{ id: string; name: string }>(
+    `SELECT id, name FROM flows
+     WHERE name LIKE ? AND archived = 0
+     ORDER BY updated_at DESC
+     LIMIT 1`,
+    [`%${search}%`],
+  );
+  if (byName) return byName.id;
+
+  throw new Error(`No flow found matching "${search}"`);
+}
+
+/**
  * Insert a new flow. Returns the generated UUID.
  *
  * @param name         Required display name.

@@ -10,6 +10,7 @@
 import * as jp from '../vendor/jsonpointer.ts';
 import { P } from '../pointers.ts';
 import { initializeCli } from '../db/sqlite.ts';
+import { resolveFlowId } from '../flows/crud.ts';
 import { buildFlowAggregate } from '../pipelines/buildFlowAggregate.ts';
 import { exportMarkdown } from '../pipelines/exportMarkdown.ts';
 import { prettyPrintMarkdown } from '../flows/renderTerminal.ts';
@@ -22,6 +23,11 @@ export async function showCommand(
 ): Promise<void> {
   if (!flowId) throw new Error('show: missing <flowId> argument');
   await initializeCli(opts.dbPath ?? defaultDbPath());
+
+  // Resolve the user-supplied argument to a concrete flow id.
+  // Handles both raw UUIDs and partial name substrings — "TASK-161"
+  // matches "TASK-161-BoardOverview SWR" (most-recently-updated wins).
+  flowId = await resolveFlowId(flowId);
 
   if (opts.json) {
     const { aggregate } = await buildFlowAggregate.process({ flowId });
