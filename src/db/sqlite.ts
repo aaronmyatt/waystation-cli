@@ -259,7 +259,11 @@ export async function applySchemaFile(sql: string): Promise<void> {
  */
 export async function checkSqlite3Available(): Promise<{ available: boolean; version?: string }> {
   try {
-    const cmd = new Deno.Command('sqlite3', { args: ['-version'], stdout: 'piped', stderr: 'piped' });
+    const cmd = new Deno.Command('sqlite3', {
+      args: ['-version'],
+      stdout: 'piped',
+      stderr: 'piped',
+    });
     const { stdout, success } = await cmd.output();
     if (!success) return { available: false };
     const text = new TextDecoder().decode(stdout);
@@ -308,8 +312,12 @@ async function runSqlite(
 
   // Clean up the temp file if we created one.
   if (tempFile) {
-    try { await Deno.remove(tempFile); } catch { /* best-effort */ }
-    try { await Deno.remove(join(tempFile, '..')); } catch { /* best-effort */ }
+    try {
+      await Deno.remove(tempFile);
+    } catch { /* best-effort */ }
+    try {
+      await Deno.remove(join(tempFile, '..'));
+    } catch { /* best-effort */ }
   }
 
   const decoder = new TextDecoder();
@@ -382,7 +390,11 @@ async function executeWithRetry<T>(
         msg.includes('database is busy')
       ) {
         const backoffMs = Math.pow(2, attempt) * 100;
-        logger.warn(`[sqlite] Database busy, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+        logger.warn(
+          `[sqlite] Database busy, retrying in ${backoffMs}ms (attempt ${
+            attempt + 1
+          }/${maxRetries})`,
+        );
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }

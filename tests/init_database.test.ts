@@ -25,15 +25,17 @@ Deno.test('initDatabase creates DB and applies schema', async () => {
       `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`,
     );
     const names = tables.map((t) => t.name);
-    for (const required of [
-      'flows',
-      'matches',
-      'flow_matches',
-      'step_contents',
-      'flow_history',
-      'tags',
-      'flow_tags',
-    ]) {
+    for (
+      const required of [
+        'flows',
+        'matches',
+        'flow_matches',
+        'step_contents',
+        'flow_history',
+        'tags',
+        'flow_tags',
+      ]
+    ) {
       assert(names.includes(required), `expected ${required} table; got ${names.join(', ')}`);
     }
   } finally {

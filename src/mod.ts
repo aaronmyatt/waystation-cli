@@ -51,11 +51,7 @@ export {
   insertFlow,
 } from './flows/crud.ts';
 export { getGitInfo, parseGitHubRepo } from './flows/git.ts';
-export {
-  addFrontmatter,
-  generateFlowMarkdown,
-  type RenderOptions,
-} from './flows/markdown.ts';
+export { addFrontmatter, generateFlowMarkdown, type RenderOptions } from './flows/markdown.ts';
 
 // ── Pipelines ────────────────────────────────────────────────────────────
 export { initDatabase } from './pipelines/initDatabase.ts';

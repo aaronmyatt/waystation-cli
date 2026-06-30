@@ -32,7 +32,7 @@ Deno.test('Empty Pipeline returns its input unchanged', async () => {
   assertEquals(out, { a: 5 });
 });
 
-Deno.test('Pipelines compose: one pipeline used as another\'s stage', async () => {
+Deno.test("Pipelines compose: one pipeline used as another's stage", async () => {
   type Ctx = { n: number };
   const inner = new Pipeline<Ctx>()
     .pipe((c) => ({ ...c, n: c.n + 1 }))

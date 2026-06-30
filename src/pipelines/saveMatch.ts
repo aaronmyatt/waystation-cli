@@ -69,7 +69,9 @@ async function enrichWithGitInfo(ctx: SaveMatchCtx): Promise<SaveMatchCtx> {
  * keeps ids the same length as random UUIDs minus dashes.)
  */
 async function generateContentBasedId(ctx: SaveMatchCtx): Promise<SaveMatchCtx> {
-  const content = `${ctx.match.line}|${ctx.match.file_path}|${ctx.match.git_commit_sha || 'unknown'}`;
+  const content = `${ctx.match.line}|${ctx.match.file_path}|${
+    ctx.match.git_commit_sha || 'unknown'
+  }`;
   // Web Crypto digest — available in Deno and Node ≥19.
   // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));

@@ -100,7 +100,7 @@ Deno.test('saveMatch refreshes grep_meta on a re-capture of the same line', asyn
     assert(row?.grep_meta, 'grep_meta should be populated after the second capture');
     const meta = JSON.parse(row!.grep_meta!);
     assertEquals(meta.context_lines.length, 3);
-    assertEquals(row?.line_no, 9);  // line_no refreshed too
+    assertEquals(row?.line_no, 9); // line_no refreshed too
   });
 });
 

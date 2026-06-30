@@ -10,10 +10,7 @@
 
 import { Pipeline } from '../vendor/pipeline.ts';
 import type { FlowAggregate } from '../types.ts';
-import {
-  buildFlowAggregate,
-  type AggCtx,
-} from './buildFlowAggregate.ts';
+import { type AggCtx, buildFlowAggregate } from './buildFlowAggregate.ts';
 import { addFrontmatter, generateFlowMarkdown, type RenderOptions } from '../flows/markdown.ts';
 
 export type ExportCtx = AggCtx & {

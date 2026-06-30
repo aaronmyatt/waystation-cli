@@ -192,7 +192,8 @@ export async function addCommand(
   });
 
   // Build a human-readable summary that mentions the title/desc if provided.
-  let summary = `Saved match ${result.resultMatchId} → flow ${result.flowId} (step ${result.flowMatchId})`;
+  let summary =
+    `Saved match ${result.resultMatchId} → flow ${result.flowId} (step ${result.flowMatchId})`;
   if (opts.title) summary += ` title="${opts.title}"`;
   if (opts.desc) summary += ` desc="${opts.desc.slice(0, 60)}${opts.desc.length > 60 ? '…' : ''}"`;
 

@@ -16,6 +16,9 @@ deno.lock
 .vscode/
 .idea/
 
+# Backlog (synced to orphan 'backlog' branch via post-commit hook)
+backlog/
+
 # Built / generated
 dist/
 coverage/

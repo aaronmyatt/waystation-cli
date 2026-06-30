@@ -15,6 +15,7 @@
 // Top-level flags (apply to every subcommand):
 //   --db <path>      Override $HOME/.waystation/way.db.
 //   --verbose, -v    Echo logger lines.
+//   --version, -V    Print version from deno.json and exit.
 //   --help, -h       Print usage and exit.
 //
 // Reference: https://jsr.io/@std/cli/doc/parse-args
@@ -52,6 +53,7 @@ COMMANDS
 GLOBAL OPTIONS
   --db   <path>     Use a non-default database file.
   -v, --verbose     Echo internal log lines.
+  -V, --version     Print version and exit.
   -h, --help        Show this help.
 `;
 
@@ -69,12 +71,27 @@ async function main(): Promise<void> {
       'raw',
       'pretty',
       'local-only',
+      'version',
     ],
     string: ['db', 'out', 'flow', 'title', 'desc'],
-    alias: { h: 'help', v: 'verbose' },
+    alias: { h: 'help', v: 'verbose', V: 'version' },
     negatable: ['export-links'],
     default: { 'export-links': true },
   });
+
+  // --version / -V: print version from deno.json and exit cleanly.
+  // Tooling (installers, CI scripts, the next-ticket skill) needs a zero-exit
+  // probe to confirm the binary is the right version without parsing --help.
+  if (args.version) {
+    // Read the version from the project manifest. Using JSON.parse is safe
+    // because deno.json is standard JSON (Deno reserves .jsonc for comments).
+    const configText = await Deno.readTextFile(
+      new URL('../deno.json', import.meta.url),
+    );
+    const config = JSON.parse(configText);
+    console.log(config.version ?? 'unknown');
+    Deno.exit(0);
+  }
 
   if (args.help || args._.length === 0) {
     console.log(USAGE);

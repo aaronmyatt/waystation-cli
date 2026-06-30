@@ -34,9 +34,9 @@ Deno.test('single-line form captures ±3 lines of context (grep -C 3)', () => {
   const m = buildMatchFromCapture('/tmp/sample.ts', SAMPLE_TEN_LINES, 5);
   assert(m.grep_meta);
   const meta = JSON.parse(m.grep_meta);
-  assertEquals(meta.context_lines.length, 7);                  // 5-3..5+3
+  assertEquals(meta.context_lines.length, 7); // 5-3..5+3
   assertEquals(meta.context_start_line, 2);
-  assertEquals(meta.matched_index_in_context, 3);              // 5 - 2
+  assertEquals(meta.matched_index_in_context, 3); // 5 - 2
   assertEquals(meta.language, 'typescript');
   assertEquals(meta.context_lines[meta.matched_index_in_context], 'line 5');
   // The single-line form stores only the target line in `.line` —
@@ -68,9 +68,9 @@ Deno.test('single-line form clamps at end of file', () => {
 Deno.test('range form captures exactly the requested slice', () => {
   const m = buildMatchFromCapture('/tmp/sample.ts', SAMPLE_TEN_LINES, 2, 5);
   const meta = JSON.parse(m.grep_meta!);
-  assertEquals(meta.context_lines.length, 4);                  // 2..5 inclusive
+  assertEquals(meta.context_lines.length, 4); // 2..5 inclusive
   assertEquals(meta.context_start_line, 2);
-  assertEquals(meta.matched_index_in_context, 0);              // range start is the target
+  assertEquals(meta.matched_index_in_context, 0); // range start is the target
   assertEquals(meta.context_lines, ['line 2', 'line 3', 'line 4', 'line 5']);
   // Range form joins the captured lines into `.line`.
   assertEquals(m.line, 'line 2\nline 3\nline 4\nline 5');
