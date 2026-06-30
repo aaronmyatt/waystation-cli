@@ -4,7 +4,7 @@
 //
 // Uses `@std/cli`'s `parseArgs` to dispatch to one of:
 //   way init                                Bootstrap the local SQLite DB.
-//   way list                                Print all non-archived flows.
+//   way list   [--json] [--plain]           Print all non-archived flows.
 //   way show   <flowId>                     Pretty-print a flow aggregate.
 //   way export <flowId> [--out FILE] [--frontmatter] [--no-export-links]
 //                                           Render a flow as Markdown.
@@ -37,7 +37,7 @@ USAGE
 
 COMMANDS
   init                                Initialise the local SQLite database.
-  list                                Print all flows.
+  list   [--json] [--plain]           Print all flows.
   show   <flowId>                     Render the flow via glow/bat/marked-terminal.
          [--raw] [--json]               --raw: structured fields; --json: aggregate JSON.
   export <flowId> [--out FILE]        Render a flow as Markdown to stdout/file.
@@ -71,6 +71,7 @@ async function main(): Promise<void> {
       'raw',
       'pretty',
       'local-only',
+      'plain',
       'version',
     ],
     string: ['db', 'out', 'flow', 'title', 'desc'],
@@ -107,7 +108,7 @@ async function main(): Promise<void> {
         await initCommand(common);
         break;
       case 'list':
-        await listCommand(common);
+        await listCommand({ ...common, json: args.json, plain: args.plain });
         break;
       case 'show':
         await showCommand(rest[0], { ...common, json: args.json, raw: args.raw });
