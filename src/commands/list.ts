@@ -12,7 +12,7 @@
 
 import { initializeCli } from '../db/sqlite.ts';
 import { getFlowsWithCounts } from '../flows/crud.ts';
-import { defaultDbPath } from './_common.ts';
+import { defaultDbPath, toIso8601 } from './_common.ts';
 
 export async function listCommand(opts: {
   dbPath?: string;
@@ -27,8 +27,18 @@ export async function listCommand(opts: {
   // Even an empty result set gets a valid `[]` — no special-casing needed,
   // because tooling that pipes into `jq` expects valid JSON, not a prose
   // message.
+  //
+  // Normalize both timestamp columns to ISO 8601 so downstream `jq`/sort
+  // consumers see one canonical format regardless of how the row was written
+  // (SQLite space form vs. extension-synced ISO). Spread first so we never
+  // mutate the objects returned by the query layer.
   if (opts.json) {
-    console.log(JSON.stringify(flows, null, 2));
+    const normalized = flows.map((f) => ({
+      ...f,
+      created_at: toIso8601(f.created_at),
+      updated_at: toIso8601(f.updated_at),
+    }));
+    console.log(JSON.stringify(normalized, null, 2));
     return;
   }
 
@@ -37,7 +47,7 @@ export async function listCommand(opts: {
   // Empty flows → no output (not even a header), so `wc -l` reads 0.
   if (opts.plain) {
     for (const f of flows) {
-      console.log(`${f.id ?? ''}\t${f.name}\t${f.matchCount}\t${f.updated_at ?? ''}`);
+      console.log(`${f.id ?? ''}\t${f.name}\t${f.matchCount}\t${toIso8601(f.updated_at)}`);
     }
     return;
   }
@@ -57,7 +67,7 @@ export async function listCommand(opts: {
   for (const f of flows) {
     console.log(
       `${pad(f.id ?? '', idWidth)}  ${pad(f.name, nameWidth)}  ` +
-        `${pad(String(f.matchCount), 5)}  ${f.updated_at ?? ''}`,
+        `${pad(String(f.matchCount), 5)}  ${toIso8601(f.updated_at)}`,
     );
   }
 }
