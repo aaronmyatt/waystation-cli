@@ -25,13 +25,12 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { join } from '@std/path';
+import { type DatabaseDriver, type Logger, setDatabaseDriver } from './driver.ts';
 
-/** Optional logger injected by the caller (CLI vs library vs tests). */
-export type Logger = {
-  log: (msg: string, ...rest: unknown[]) => void;
-  warn: (msg: string, ...rest: unknown[]) => void;
-  error: (msg: string, ...rest: unknown[]) => void;
-};
+// Logger historically lived in this file; it moved to driver.ts with the
+// DatabaseDriver interface (TASK-14). Re-exported so existing
+// `import { Logger } from './db/sqlite.ts'` sites keep compiling.
+export type { Logger } from './driver.ts';
 
 const silentLogger: Logger = { log: () => {}, warn: () => {}, error: () => {} };
 
@@ -66,6 +65,12 @@ export async function initializeCli(
 ): Promise<void> {
   dbPath = databasePath;
   logger = customLogger;
+
+  // Make this Deno implementation the driver behind db/helpers.ts. Every
+  // existing caller already initialises before querying, so self-registering
+  // here keeps default Deno behaviour identical while letting other runtimes
+  // register their own driver instead (see db/driver.ts, TASK-14).
+  setDatabaseDriver(denoSqliteDriver);
 
   // WAL mode: allows readers and a writer to coexist without locking the DB.
   await executeQuery('PRAGMA journal_mode=WAL');
@@ -273,6 +278,29 @@ export async function checkSqlite3Available(): Promise<{ available: boolean; ver
     return { available: false };
   }
 }
+
+// ── DatabaseDriver implementation ────────────────────────────────────────
+
+/**
+ * The Deno {@linkcode DatabaseDriver}: the module's existing functions,
+ * bundled behind the runtime-agnostic interface from db/driver.ts.
+ *
+ * This is the driver Deno callers get implicitly — `initializeCli()`
+ * registers it as the active driver — and the reference implementation for
+ * anyone writing a Node.js equivalent (same sqlite3-CLI shelling via
+ * `child_process`, or a native binding like better-sqlite3).
+ */
+export const denoSqliteDriver: DatabaseDriver = {
+  initialize: initializeCli,
+  query: executeQuery,
+  get: executeGet,
+  run: executeRun,
+  transaction: executeTransaction,
+  batch: executeBatch,
+  checkpoint,
+  applySchema: applySchemaFile,
+  getPath: getDatabasePath,
+};
 
 // ── internal helpers ─────────────────────────────────────────────────────
 

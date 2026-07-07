@@ -1,13 +1,19 @@
 // ──────────────────────────────────────────────────────────────────────────
-// Thin CRUD helpers built on the sqlite3 shell driver.
+// Thin CRUD helpers built on the active DatabaseDriver.
 //
 // Ported from waystation-vscode/src/db/dbAsync.ts. The original carried a
 // legacy `db: any` first parameter for compatibility with an older
 // connection-handle API; the shell driver is stateless at the protocol
 // level, so we drop that argument here.
+//
+// Deliberately imports ONLY the driver interface/registry — never the Deno
+// implementation in sqlite.ts — so this layer (and everything above it:
+// flows/, pipelines/) is runtime-agnostic. The driver is resolved per call
+// via getDatabaseDriver(), not captured at import time, so a driver swapped
+// in mid-session (tests, backup/restore) takes effect immediately (TASK-14).
 // ──────────────────────────────────────────────────────────────────────────
 
-import { executeGet, executeQuery, executeRun } from './sqlite.ts';
+import { getDatabaseDriver } from './driver.ts';
 
 /**
  * Generic INSERT … ON CONFLICT(...) DO UPDATE … RETURNING id.
@@ -44,7 +50,7 @@ export async function upsertAsync(
   `;
 
   const params = columns.map((col) => data[col]);
-  const result = await executeQuery<{ id: string | number }>(sql, params);
+  const result = await getDatabaseDriver().query<{ id: string | number }>(sql, params);
   if (result && result.length > 0 && result[0].id !== undefined) {
     return result[0].id;
   }
@@ -56,7 +62,7 @@ export async function queryAsync<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  return await executeQuery<T>(sql, params);
+  return await getDatabaseDriver().query<T>(sql, params);
 }
 
 /** Return the first row of a query, or `undefined`. */
@@ -64,12 +70,12 @@ export async function getAsync<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T | undefined> {
-  return await executeGet<T>(sql, params);
+  return await getDatabaseDriver().get<T>(sql, params);
 }
 
 /** Run a non-returning statement (INSERT/UPDATE/DELETE/ALTER). */
 export async function runAsync(sql: string, params: unknown[] = []): Promise<void> {
-  await executeRun(sql, params);
+  await getDatabaseDriver().run(sql, params);
 }
 
 // ── REPL examples ────────────────────────────────────────────────────────

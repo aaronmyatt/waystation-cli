@@ -21,14 +21,9 @@
 
 import { dirname, fromFileUrl, join } from '@std/path';
 import { Pipeline } from '../vendor/pipeline.ts';
-import {
-  applySchemaFile,
-  checkSqlite3Available,
-  executeQuery,
-  initializeCli,
-  type Logger,
-} from '../db/sqlite.ts';
-import { runAsync } from '../db/helpers.ts';
+import { type DatabaseDriver, type Logger, setDatabaseDriver } from '../db/driver.ts';
+import { checkSqlite3Available, denoSqliteDriver } from '../db/sqlite.ts';
+import { queryAsync, runAsync } from '../db/helpers.ts';
 import { SCHEMA_SQL } from '../schema.ts';
 import { denoFs, type FileSystem } from '../platform.ts';
 
@@ -58,6 +53,16 @@ export type InitCtx = {
    * so later stages can rely on `ctx.fs` being set.
    */
   fs?: FileSystem;
+  /**
+   * Optional {@link DatabaseDriver} for all SQLite access. Defaults to the
+   * Deno sqlite3-CLI implementation; Node.js consumers inject a
+   * `child_process`-backed one (see backlog TASK-1/TASK-14). Normalised in
+   * the first stage alongside `fs`, and registered as the active driver for
+   * the helper layer (db/helpers.ts) in `openAndApplySchema` — so every
+   * downstream pipeline (saveMatch, buildFlowAggregate, exportMarkdown)
+   * automatically runs through it.
+   */
+  driver?: DatabaseDriver;
 
   // ── populated by stages ──────────────────────────────────────────────
   backupPath?: string | null;
@@ -67,9 +72,11 @@ export type InitCtx = {
 // ── Stage: resolve filesystem paths ──────────────────────────────────────
 
 async function resolvePaths(ctx: InitCtx): Promise<InitCtx> {
-  // Normalise the FileSystem once here (the first stage) — every later
-  // stage can then use `ctx.fs!` the same way it uses `ctx.dbPath!`.
+  // Normalise the FileSystem and DatabaseDriver once here (the first
+  // stage) — every later stage can then use `ctx.fs!` / `ctx.driver!` the
+  // same way it uses `ctx.dbPath!`.
   const fs = ctx.fs ?? denoFs;
+  const driver = ctx.driver ?? denoSqliteDriver;
   const home = ctx.homeDir ?? fs.env('HOME') ?? fs.env('USERPROFILE');
   if (!home && !ctx.dbPath) {
     throw new Error('Cannot resolve database path: $HOME is unset and no dbPath given.');
@@ -88,10 +95,18 @@ async function resolvePaths(ctx: InitCtx): Promise<InitCtx> {
   // Check if the default file path actually exists — if not, fall back to
   // the bundled string. This handles JSR installs where schema.sql is not
   // extracted to disk.
+  //
+  // For an *injected* driver we also prefer the bundled string even when the
+  // file is on disk: the DatabaseDriver.applySchema contract is SQL text —
+  // only the Deno implementation tolerates a file path (legacy behaviour) —
+  // so handing a path to e.g. a Node driver would fail. A caller who
+  // explicitly set ctx.schemaPath has opted into their driver's semantics.
   const schemaOnDisk = (await fs.stat(schemaPath)) !== null;
-  const schemaForCtx = schemaOnDisk ? schemaPath : SCHEMA_SQL;
+  const useFilePath = schemaOnDisk &&
+    (ctx.schemaPath !== undefined || driver === denoSqliteDriver);
+  const schemaForCtx = useFilePath ? schemaPath : SCHEMA_SQL;
 
-  return { ...ctx, fs, storageDir, dbPath, schemaPath: schemaForCtx };
+  return { ...ctx, fs, driver, storageDir, dbPath, schemaPath: schemaForCtx };
 }
 
 async function ensureStorageDir(ctx: InitCtx): Promise<InitCtx> {
@@ -154,6 +169,11 @@ async function cleanupOldBackups(ctx: InitCtx): Promise<InitCtx> {
 // ── Stage: verify the sqlite3 CLI is installed ───────────────────────────
 
 async function ensureSqlite3Available(ctx: InitCtx): Promise<InitCtx> {
+  // The probe spawns `sqlite3 -version` via Deno.Command, so it only makes
+  // sense for the default Deno driver. An injected driver (Node
+  // child_process, better-sqlite3, in-memory fake…) owns its own
+  // availability story and may not need the CLI binary at all.
+  if (ctx.driver !== denoSqliteDriver) return ctx;
   const probe = await checkSqlite3Available();
   if (!probe.available) {
     // The upstream extension shows a VS Code modal here. The CLI just
@@ -171,8 +191,15 @@ async function ensureSqlite3Available(ctx: InitCtx): Promise<InitCtx> {
 // ── Stage: open driver + apply schema ────────────────────────────────────
 
 async function openAndApplySchema(ctx: InitCtx): Promise<InitCtx> {
-  await initializeCli(ctx.dbPath!, ctx.logger);
-  await applySchemaFile(ctx.schemaPath!);
+  await ctx.driver!.initialize(ctx.dbPath!, ctx.logger);
+  // Register the driver for the helper layer (db/helpers.ts) *after*
+  // initialising — an injected driver that delegates to initializeCli()
+  // (e.g. a test spy wrapping the Deno driver) would otherwise self-register
+  // the Deno driver on top of us. Registering here means the migration
+  // stages below — and every downstream pipeline reaching the DB through
+  // queryAsync/runAsync — go through the injected driver.
+  setDatabaseDriver(ctx.driver!);
+  await ctx.driver!.applySchema(ctx.schemaPath!);
   return ctx;
 }
 
@@ -182,7 +209,7 @@ async function ensureLocalOnlyColumn(ctx: InitCtx): Promise<InitCtx> {
   // pragma_table_info is the supported way to introspect columns without
   // pulling the full schema:
   //   https://sqlite.org/pragma.html#pragma_table_info
-  const rows = await executeQuery<{ count: number }>(
+  const rows = await queryAsync<{ count: number }>(
     "SELECT COUNT(*) AS count FROM pragma_table_info('flows') WHERE name='local_only'",
   );
   if (rows[0]?.count === 0) {
@@ -193,7 +220,7 @@ async function ensureLocalOnlyColumn(ctx: InitCtx): Promise<InitCtx> {
 }
 
 async function ensureSyncedAtColumn(ctx: InitCtx): Promise<InitCtx> {
-  const rows = await executeQuery<{ count: number }>(
+  const rows = await queryAsync<{ count: number }>(
     "SELECT COUNT(*) AS count FROM pragma_table_info('flows') WHERE name='synced_at'",
   );
   if (rows[0]?.count === 0) {
@@ -257,6 +284,12 @@ export const initDatabase: Pipeline<InitCtx> = new Pipeline<InitCtx>()
 // import { denoFs } from '../platform.ts';
 // const spy = { ...denoFs, stat: (p) => { console.log('stat', p); return denoFs.stat(p); } };
 // await initDatabase.process({ dbPath: '/tmp/way-test.db', fs: spy });
+//
+// // 2c. Inject a custom DatabaseDriver (e.g. Node.js child_process, or a spy).
+// // The pipeline registers it, so saveMatch/buildFlowAggregate then use it too.
+// import { denoSqliteDriver } from '../db/sqlite.ts';
+// const drv = { ...denoSqliteDriver, run: (sql, p) => (console.log(sql), denoSqliteDriver.run(sql, p)) };
+// await initDatabase.process({ dbPath: '/tmp/way-test.db', driver: drv });
 //
 // // 3. Add a custom post-init stage on the fly
 // import { Pipeline } from '../vendor/pipeline.ts';

@@ -26,10 +26,17 @@ export type {
 } from './types.ts';
 
 // ── DB driver + helpers ──────────────────────────────────────────────────
+// The runtime-agnostic seam (TASK-14): non-Deno consumers implement
+// `DatabaseDriver` and either call `setDatabaseDriver(...)` at startup or
+// pass it via `InitCtx.driver`. Deno callers get `denoSqliteDriver`
+// implicitly — `initializeCli()` self-registers it.
+export { getDatabaseDriver, setDatabaseDriver } from './db/driver.ts';
+export type { DatabaseDriver, Logger } from './db/driver.ts';
 export {
   applySchemaFile,
   checkpoint,
   checkSqlite3Available,
+  denoSqliteDriver,
   executeBatch,
   executeGet,
   executeQuery,
@@ -38,7 +45,6 @@ export {
   getDatabasePath,
   initializeCli,
 } from './db/sqlite.ts';
-export type { Logger } from './db/sqlite.ts';
 export { getAsync, queryAsync, runAsync, upsertAsync } from './db/helpers.ts';
 
 // ── Flow primitives ──────────────────────────────────────────────────────
