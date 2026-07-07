@@ -55,11 +55,12 @@ export { getGitInfo, parseGitHubRepo } from './flows/git.ts';
 export { addFrontmatter, generateFlowMarkdown, type RenderOptions } from './flows/markdown.ts';
 
 // ── Platform abstraction ─────────────────────────────────────────────────
-// Runtime-specific primitives behind injectable interfaces (TASK-12).
-// Non-Deno consumers implement `CommandRunner` and pass it to `getGitInfo`
-// or via `SaveMatchCtx.commandRunner`; Deno callers get the default.
-export { denoCommandRunner } from './platform.ts';
-export type { CommandResult, CommandRunner } from './platform.ts';
+// Runtime-specific primitives behind injectable interfaces (TASK-12/13).
+// Non-Deno consumers implement `CommandRunner` (subprocesses — pass to
+// `getGitInfo` or via `SaveMatchCtx.commandRunner`) and `FileSystem`
+// (disk/env — pass via `InitCtx.fs`); Deno callers get the defaults.
+export { denoCommandRunner, denoFs } from './platform.ts';
+export type { CommandResult, CommandRunner, DirEntry, FileStat, FileSystem } from './platform.ts';
 
 // ── Pipelines ────────────────────────────────────────────────────────────
 export { initDatabase } from './pipelines/initDatabase.ts';

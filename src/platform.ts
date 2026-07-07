@@ -91,8 +91,77 @@ export const denoCommandRunner: CommandRunner = async (cmd, args, cwd) => {
   }
 };
 
+// ── Filesystem abstraction ───────────────────────────────────────────────
+
+/** Minimal stat result — just the two facts the library ever asks for. */
+export type FileStat = {
+  isFile: boolean;
+  isDirectory: boolean;
+};
+
+/** A directory entry as yielded by {@link FileSystem.readDir}. */
+export type DirEntry = {
+  name: string;
+  isFile: boolean;
+};
+
+/**
+ * Filesystem + process-environment primitives used by the library core
+ * (currently the `initDatabase` pipeline: path resolution, backups, backup
+ * cleanup). Deliberately tiny — only the operations the core actually
+ * performs, so a Node.js implementation is a ~20-line `fs/promises` wrapper
+ * and an in-memory test fake is trivial.
+ *
+ * Error convention: `stat` returns `null` for a missing path instead of
+ * throwing (mirroring how every call site immediately catch-and-defaults);
+ * the mutating operations reject on failure and callers decide whether
+ * that's fatal (backup copy) or ignorable (cleanup).
+ */
+export type FileSystem = {
+  /** Stat a path, or `null` if it doesn't exist / isn't accessible. */
+  stat(path: string): Promise<FileStat | null>;
+  /** Copy a file, overwriting `dest` if present. */
+  copyFile(src: string, dest: string): Promise<void>;
+  /** Iterate the entries of a directory (non-recursive). */
+  readDir(path: string): AsyncIterable<DirEntry>;
+  /** Delete a file. */
+  remove(path: string): Promise<void>;
+  /** Create a directory; with `recursive` it's mkdir-p (no error if present). */
+  mkdir(path: string, opts?: { recursive: boolean }): Promise<void>;
+  /** Current working directory. */
+  cwd(): string;
+  /** Read an environment variable (e.g. HOME / USERPROFILE). */
+  env(key: string): string | undefined;
+};
+
+/**
+ * Default {@link FileSystem} backed by the Deno runtime APIs.
+ * https://docs.deno.com/api/deno/file-system
+ */
+export const denoFs: FileSystem = {
+  stat: async (path) => {
+    try {
+      const info = await Deno.stat(path);
+      return { isFile: info.isFile, isDirectory: info.isDirectory };
+    } catch {
+      return null;
+    }
+  },
+  copyFile: (src, dest) => Deno.copyFile(src, dest),
+  // Deno.readDir entries are structurally compatible with DirEntry
+  // ({ name, isFile, isDirectory, isSymlink }) — pass through directly.
+  readDir: (path) => Deno.readDir(path),
+  remove: (path) => Deno.remove(path),
+  // { recursive: true } makes this mkdir-p: parents are created and an
+  // already-existing directory is not an error.
+  // https://docs.deno.com/api/deno/~/Deno.mkdir
+  mkdir: (path, opts) => Deno.mkdir(path, opts),
+  cwd: () => Deno.cwd(),
+  env: (key) => Deno.env.get(key),
+};
+
 // ── REPL examples ────────────────────────────────────────────────────────
-// import { denoCommandRunner } from './platform.ts';
+// import { denoCommandRunner, denoFs } from './platform.ts';
 //
 // // 1. Run a command that succeeds
 // await denoCommandRunner('git', ['--version'], '.');
@@ -105,3 +174,8 @@ export const denoCommandRunner: CommandRunner = async (cmd, args, cwd) => {
 // // 3. A custom runner for tests — no subprocess at all
 // const fake: import('./platform.ts').CommandRunner = (cmd, args) =>
 //   Promise.resolve({ success: true, stdout: `${cmd} ${args.join(' ')}`, stderr: '' });
+//
+// // 4. Probe the filesystem via the default FileSystem
+// await denoFs.stat('deno.json');   // → { isFile: true, isDirectory: false }
+// await denoFs.stat('/nope');       // → null (never throws)
+// denoFs.env('HOME');               // → '/Users/you'

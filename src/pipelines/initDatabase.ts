@@ -20,7 +20,6 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { dirname, fromFileUrl, join } from '@std/path';
-import { ensureDir } from '@std/fs';
 import { Pipeline } from '../vendor/pipeline.ts';
 import {
   applySchemaFile,
@@ -31,6 +30,7 @@ import {
 } from '../db/sqlite.ts';
 import { runAsync } from '../db/helpers.ts';
 import { SCHEMA_SQL } from '../schema.ts';
+import { denoFs, type FileSystem } from '../platform.ts';
 
 /** Maximum number of timestamped backups to retain on disk. */
 const MAX_BACKUPS_TO_RETAIN = 10;
@@ -51,6 +51,13 @@ export type InitCtx = {
   schemaPath?: string;
   /** Optional logger; silent if omitted. */
   logger?: Logger;
+  /**
+   * Optional {@link FileSystem} for all disk/env access. Defaults to the
+   * Deno implementation; Node.js consumers (e.g. the VS Code extension)
+   * inject an `fs/promises`-backed one. The first stage normalises this,
+   * so later stages can rely on `ctx.fs` being set.
+   */
+  fs?: FileSystem;
 
   // ── populated by stages ──────────────────────────────────────────────
   backupPath?: string | null;
@@ -60,11 +67,14 @@ export type InitCtx = {
 // ── Stage: resolve filesystem paths ──────────────────────────────────────
 
 async function resolvePaths(ctx: InitCtx): Promise<InitCtx> {
-  const home = ctx.homeDir ?? Deno.env.get('HOME') ?? Deno.env.get('USERPROFILE');
+  // Normalise the FileSystem once here (the first stage) — every later
+  // stage can then use `ctx.fs!` the same way it uses `ctx.dbPath!`.
+  const fs = ctx.fs ?? denoFs;
+  const home = ctx.homeDir ?? fs.env('HOME') ?? fs.env('USERPROFILE');
   if (!home && !ctx.dbPath) {
     throw new Error('Cannot resolve database path: $HOME is unset and no dbPath given.');
   }
-  const storageDir = ctx.storageDir ?? (home ? join(home, '.waystation') : Deno.cwd());
+  const storageDir = ctx.storageDir ?? (home ? join(home, '.waystation') : fs.cwd());
   const dbPath = ctx.dbPath ?? join(storageDir, 'way.db');
 
   // Resolve the schema source. When a custom schemaPath is provided, use
@@ -78,15 +88,17 @@ async function resolvePaths(ctx: InitCtx): Promise<InitCtx> {
   // Check if the default file path actually exists — if not, fall back to
   // the bundled string. This handles JSR installs where schema.sql is not
   // extracted to disk.
-  const schemaOnDisk = await Deno.stat(schemaPath).then(() => true).catch(() => false);
+  const schemaOnDisk = (await fs.stat(schemaPath)) !== null;
   const schemaForCtx = schemaOnDisk ? schemaPath : SCHEMA_SQL;
 
-  return { ...ctx, storageDir, dbPath, schemaPath: schemaForCtx };
+  return { ...ctx, fs, storageDir, dbPath, schemaPath: schemaForCtx };
 }
 
 async function ensureStorageDir(ctx: InitCtx): Promise<InitCtx> {
   if (!ctx.storageDir) throw new Error('ensureStorageDir: storageDir missing from ctx');
-  await ensureDir(ctx.storageDir);
+  // recursive:true is mkdir-p semantics — creates parents, no error if the
+  // directory already exists. Replaces @std/fs ensureDir.
+  await ctx.fs!.mkdir(ctx.storageDir, { recursive: true });
   return ctx;
 }
 
@@ -94,15 +106,13 @@ async function ensureStorageDir(ctx: InitCtx): Promise<InitCtx> {
 
 async function createTimestampedBackup(ctx: InitCtx): Promise<InitCtx> {
   const dbPath = ctx.dbPath!;
-  try {
-    await Deno.stat(dbPath);
-  } catch {
+  if ((await ctx.fs!.stat(dbPath)) === null) {
     // Fresh install — nothing to back up.
     return { ...ctx, backupPath: null };
   }
   // Keep the suffix format compatible with the upstream cleanup regex.
   const backupPath = dbPath.replace(/\.db$/, `-backup-${Date.now()}.db`);
-  await Deno.copyFile(dbPath, backupPath);
+  await ctx.fs!.copyFile(dbPath, backupPath);
   ctx.logger?.log(`[init] Backup created: ${backupPath}`);
   return { ...ctx, backupPath };
 }
@@ -114,7 +124,7 @@ async function cleanupOldBackups(ctx: InitCtx): Promise<InitCtx> {
   const backupPattern = /-backup-(\d+)\.db$/;
   try {
     const entries: Array<{ name: string; ts: number; path: string }> = [];
-    for await (const entry of Deno.readDir(storageDir)) {
+    for await (const entry of ctx.fs!.readDir(storageDir)) {
       const m = entry.name.match(backupPattern);
       if (m) {
         entries.push({
@@ -128,7 +138,7 @@ async function cleanupOldBackups(ctx: InitCtx): Promise<InitCtx> {
     const toDelete = entries.slice(MAX_BACKUPS_TO_RETAIN);
     for (const b of toDelete) {
       try {
-        await Deno.remove(b.path);
+        await ctx.fs!.remove(b.path);
         ctx.logger?.log(`[init] Deleted old backup: ${b.name}`);
       } catch (err) {
         ctx.logger?.warn(`[init] Failed to delete backup ${b.name}: ${err}`);
@@ -242,6 +252,11 @@ export const initDatabase: Pipeline<InitCtx> = new Pipeline<InitCtx>()
 //
 // // 2. Init at a custom path (e.g. for tests)
 // const ctx2 = await initDatabase.process({ dbPath: '/tmp/way-test.db' });
+//
+// // 2b. Inject a custom FileSystem (e.g. Node.js fs/promises, or a spy)
+// import { denoFs } from '../platform.ts';
+// const spy = { ...denoFs, stat: (p) => { console.log('stat', p); return denoFs.stat(p); } };
+// await initDatabase.process({ dbPath: '/tmp/way-test.db', fs: spy });
 //
 // // 3. Add a custom post-init stage on the fly
 // import { Pipeline } from '../vendor/pipeline.ts';
