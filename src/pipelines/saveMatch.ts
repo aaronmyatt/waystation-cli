@@ -19,6 +19,7 @@ import type { Match } from '../types.ts';
 import { getAsync, runAsync } from '../db/helpers.ts';
 import { getGitInfo, parseGitHubRepo } from '../flows/git.ts';
 import { insertFlow } from '../flows/crud.ts';
+import type { CommandRunner } from '../platform.ts';
 
 export type SaveMatchCtx = {
   /** The match to persist. Stages enrich this in-place. */
@@ -31,6 +32,12 @@ export type SaveMatchCtx = {
   stepTitle?: string;
   /** Optional description/body for this step (stored in step_contents). */
   stepDesc?: string;
+  /**
+   * Optional {@link CommandRunner} used for git inspection. Defaults to the
+   * Deno implementation; Node.js consumers (e.g. the VS Code extension)
+   * inject a `child_process`-backed runner here.
+   */
+  commandRunner?: CommandRunner;
 
   // ── populated by stages ──────────────────────────────────────────────
   resultMatchId?: string;
@@ -45,7 +52,11 @@ export type SaveMatchCtx = {
  * matchUtils.ts:65-69.
  */
 async function enrichWithGitInfo(ctx: SaveMatchCtx): Promise<SaveMatchCtx> {
-  const gitInfo = await getGitInfo(dirname(ctx.match.file_path), ctx.match.file_path);
+  const gitInfo = await getGitInfo(
+    dirname(ctx.match.file_path),
+    ctx.match.file_path,
+    ctx.commandRunner,
+  );
   ctx.match.git_repo_root = parseGitHubRepo(gitInfo.remoteUrl) || gitInfo.repoRoot;
   ctx.match.git_commit_sha = gitInfo.commitSha;
   ctx.match.git_branch = gitInfo.branch;

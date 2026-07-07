@@ -6,18 +6,20 @@
 // fast path; we drop that here because this package runs outside VS Code.
 //
 // Strategy: run a series of `git` (and optional `gh`) subcommands in the
-// given directory. Each shells out via `Deno.Command`, which is the Deno
-// equivalent of Node's `child_process.execSync`.
+// given directory. Subprocess spawning goes through the injectable
+// `CommandRunner` abstraction (src/platform.ts) so non-Deno consumers —
+// the VS Code extension on Node.js, or tests with no subprocess access —
+// can supply their own implementation. The default is `denoCommandRunner`.
 //
 // References:
 //   • `git rev-parse`:    https://git-scm.com/docs/git-rev-parse
 //   • `git remote`:       https://git-scm.com/docs/git-remote
 //   • `gh repo view`:     https://cli.github.com/manual/gh_repo_view
-//   • Deno.Command:       https://docs.deno.com/api/deno/~/Deno.Command
 // ──────────────────────────────────────────────────────────────────────────
 
 import { relative } from '@std/path';
 import type { GitInfo } from '../types.ts';
+import { type CommandRunner, denoCommandRunner } from '../platform.ts';
 
 /**
  * Extract `owner/repo` from a GitHub remote URL.
@@ -41,45 +43,23 @@ const FALLBACK: GitInfo = {
 };
 
 /**
- * Run a single git/gh command in `cwd`. Returns the trimmed stdout, or
- * `undefined` if the command failed (non-zero exit, missing binary, etc.).
+ * Run a single git/gh command in `cwd` via the given runner. Returns the
+ * trimmed stdout, or `undefined` if the command failed (non-zero exit,
+ * missing binary, timeout, etc.).
  *
  * We swallow stderr deliberately — these commands are best-effort probes,
  * not user-facing operations, so logging "fatal: not a git repository" for
  * every non-repo directory would be noise.
  */
-async function runCmd(cmd: string, args: string[], cwd: string): Promise<string | undefined> {
-  // The upstream Node version uses execSync with a 5-second timeout. Deno's
-  // Command API doesn't expose a per-process timeout, so we race child.output()
-  // against a timer and clear whichever loses. Clearing the timer in finally
-  // is critical — otherwise the test runner sees a "leaked timer".
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const child = new Deno.Command(cmd, {
-      args,
-      cwd,
-      stdout: 'piped',
-      stderr: 'null',
-    }).spawn();
-
-    const timeoutPromise = new Promise<'__TIMEOUT__'>((resolve) => {
-      timer = setTimeout(() => {
-        try {
-          child.kill('SIGKILL');
-        } catch { /* already dead */ }
-        resolve('__TIMEOUT__');
-      }, 5000);
-    });
-
-    const result = await Promise.race([child.output(), timeoutPromise]);
-    if (result === '__TIMEOUT__') return undefined;
-    if (!result.success) return undefined;
-    return new TextDecoder().decode(result.stdout).trim() || undefined;
-  } catch {
-    return undefined;
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
+async function runCmd(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  runner: CommandRunner,
+): Promise<string | undefined> {
+  const result = await runner(cmd, args, cwd);
+  if (!result.success) return undefined;
+  return result.stdout.trim() || undefined;
 }
 
 /**
@@ -95,52 +75,67 @@ async function runCmd(cmd: string, args: string[], cwd: string): Promise<string 
  *
  * @param dirPath   Directory to inspect (usually the file's parent dir).
  * @param filePath  Optional file path to compute `repoRelativePath` for.
+ * @param runner    Optional {@link CommandRunner} for spawning git/gh.
+ *                  Defaults to `denoCommandRunner`; Node.js consumers pass
+ *                  a `child_process`-backed implementation instead.
  */
-export async function getGitInfo(dirPath: string, filePath?: string): Promise<GitInfo> {
+export async function getGitInfo(
+  dirPath: string,
+  filePath?: string,
+  runner: CommandRunner = denoCommandRunner,
+): Promise<GitInfo> {
   try {
-    const isInside = await runCmd('git', ['rev-parse', '--is-inside-work-tree'], dirPath);
+    const isInside = await runCmd('git', ['rev-parse', '--is-inside-work-tree'], dirPath, runner);
     if (isInside !== 'true') return FALLBACK;
 
-    const fsRepoRoot = await runCmd('git', ['rev-parse', '--show-toplevel'], dirPath);
+    const fsRepoRoot = await runCmd('git', ['rev-parse', '--show-toplevel'], dirPath, runner);
     if (!fsRepoRoot) return FALLBACK;
 
     // Commit SHA — try full first, then short.
-    let commitSha = await runCmd('git', ['rev-parse', 'HEAD'], dirPath);
-    if (!commitSha) commitSha = await runCmd('git', ['rev-parse', '--short', 'HEAD'], dirPath);
+    let commitSha = await runCmd('git', ['rev-parse', 'HEAD'], dirPath, runner);
+    if (!commitSha) {
+      commitSha = await runCmd('git', ['rev-parse', '--short', 'HEAD'], dirPath, runner);
+    }
     commitSha ||= 'unknown';
 
     // Branch — abbrev-ref usually works; falls back through symbolic-ref and
     // describe for detached-HEAD states.
-    let branch = await runCmd('git', ['rev-parse', '--abbrev-ref', 'HEAD'], dirPath);
+    let branch = await runCmd('git', ['rev-parse', '--abbrev-ref', 'HEAD'], dirPath, runner);
     if (!branch || branch === 'HEAD') {
-      branch = await runCmd('git', ['symbolic-ref', '--short', 'HEAD'], dirPath);
+      branch = await runCmd('git', ['symbolic-ref', '--short', 'HEAD'], dirPath, runner);
     }
     if (!branch || branch === 'HEAD') {
-      branch = await runCmd('git', ['describe', '--all', '--exact-match'], dirPath);
+      branch = await runCmd('git', ['describe', '--all', '--exact-match'], dirPath, runner);
     }
     branch ||= 'unknown';
 
     // Remote URL — five fallbacks; see jsdoc above for rationale.
-    let remoteUrl = await runCmd('gh', ['repo', 'view', '--json', 'url', '-q', '.url'], dirPath);
+    let remoteUrl = await runCmd(
+      'gh',
+      ['repo', 'view', '--json', 'url', '-q', '.url'],
+      dirPath,
+      runner,
+    );
     if (!remoteUrl) {
       const nameWithOwner = await runCmd(
         'gh',
         ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
         dirPath,
+        runner,
       );
       if (nameWithOwner) remoteUrl = `https://github.com/${nameWithOwner}`;
     }
     if (!remoteUrl) {
-      remoteUrl = await runCmd('git', ['remote', 'get-url', 'origin'], dirPath);
+      remoteUrl = await runCmd('git', ['remote', 'get-url', 'origin'], dirPath, runner);
     }
     if (!remoteUrl) {
-      remoteUrl = await runCmd('git', ['config', '--get', 'remote.origin.url'], dirPath);
+      remoteUrl = await runCmd('git', ['config', '--get', 'remote.origin.url'], dirPath, runner);
     }
     if (!remoteUrl) {
-      const remotes = await runCmd('git', ['remote'], dirPath);
+      const remotes = await runCmd('git', ['remote'], dirPath, runner);
       const firstRemote = remotes?.split('\n')[0];
       if (firstRemote) {
-        remoteUrl = await runCmd('git', ['remote', 'get-url', firstRemote], dirPath);
+        remoteUrl = await runCmd('git', ['remote', 'get-url', firstRemote], dirPath, runner);
       }
     }
 
@@ -176,3 +171,8 @@ export async function getGitInfo(dirPath: string, filePath?: string): Promise<Gi
 //
 // // 3. Parse a remote URL
 // parseGitHubRepo('git@github.com:foo/bar.git');   // 'foo/bar'
+//
+// // 4. Inject a custom runner (e.g. from Node.js, or a test fake)
+// const fake: import('../platform.ts').CommandRunner = (_cmd, args) =>
+//   Promise.resolve({ success: true, stdout: args.join(' '), stderr: '' });
+// await getGitInfo('/anywhere', undefined, fake);

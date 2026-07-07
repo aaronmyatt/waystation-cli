@@ -54,6 +54,13 @@ export {
 export { getGitInfo, parseGitHubRepo } from './flows/git.ts';
 export { addFrontmatter, generateFlowMarkdown, type RenderOptions } from './flows/markdown.ts';
 
+// ── Platform abstraction ─────────────────────────────────────────────────
+// Runtime-specific primitives behind injectable interfaces (TASK-12).
+// Non-Deno consumers implement `CommandRunner` and pass it to `getGitInfo`
+// or via `SaveMatchCtx.commandRunner`; Deno callers get the default.
+export { denoCommandRunner } from './platform.ts';
+export type { CommandResult, CommandRunner } from './platform.ts';
+
 // ── Pipelines ────────────────────────────────────────────────────────────
 export { initDatabase } from './pipelines/initDatabase.ts';
 export type { InitCtx } from './pipelines/initDatabase.ts';
