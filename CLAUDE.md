@@ -20,26 +20,6 @@ SQLite-backed, zero-runtime-dependencies. Published on JSR as `@atm/waystation-c
 | Schema                 | `schema.sql` (+ `src/schema.ts`)        | The DDL. `src/schema.ts` bundles it as a string so JSR consumers don't need filesystem access |
 | Vendored primitives    | `src/vendor/*.ts`                       | `Pipeline` (from pdPipe) and `jsonpointer` — kept self-contained for zero-dep                 |
 | Tests                  | `tests/*.test.ts`                       | Plain Deno.test, no test framework. Run with `deno task test`                                 |
-| Backlog                | `backlog/`                              | Task-driven workflow (see §Backlog below)                                                     |
-
----
-
-## Backlog & implementation workflow
-
-Every non-trivial change moves through `backlog/tasks/` entries. The cadence is **plan → implement →
-`Testing` → user verifies → `Done`**, with explicit pause-points.
-
-- **Pause for verification at every AC boundary.** Don't chain dependent tasks without the user's
-  go-ahead, even when the next task looks tempting.
-- **Always include testable snippets in the task notes** that the user can paste to drive each AC
-  themselves: CLI one-liners, Deno REPL imports, or `fetch` calls against a running server. The goal
-  is copy-paste verification.
-- **Reshape dependent tasks immediately** when a design decision in one task invalidates assumptions
-  in another. Don't leave it for later.
-- **Capture deferred ideas as `Draft` tickets** in `backlog/drafts/`, never as TODO comments or chat
-  scrollback.
-- **Bug fixes during testing get appended as a "Fix during testing" note** to the existing task —
-  don't rewrite plan/notes. Preserves the trail of what went wrong and why.
 
 ---
 
