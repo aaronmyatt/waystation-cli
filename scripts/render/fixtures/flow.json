@@ -1,0 +1,249 @@
+{
+  "flow": {
+    "name": "How way export renders a flow",
+    "id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+    "description": "From CLI flag to rendered text: the path a flow takes through `way export`.",
+    "git_repo_root": "aaronmyatt/waystation-cli",
+    "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+    "git_branch": "main",
+    "parent_flow_id": null,
+    "parent_flow_match_id": null,
+    "created_at": "2026-11-23 13:43:44",
+    "updated_at": "2026-11-23 13:43:51",
+    "archived": 0,
+    "local_only": 0,
+    "synced_at": null
+  },
+  "matches": [
+    {
+      "flow_match_id": "1f0a986a-0945-47a2-bb17-845dc533d844",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "e471fea7dfb5932a8996778c6aa77206",
+      "order_index": 0,
+      "content_kind": "note",
+      "content_id": "b338b0fa-2f89-4c4f-8a30-60013b6ee66d",
+      "updated_at": "2026-11-23 13:43:44",
+      "match": {
+        "id": "e471fea7dfb5932a8996778c6aa77206",
+        "line": "      case 'export':\n        await exportCommand(rest[0], {\n          ...common,\n          out: args.out,\n          frontmatter: args.frontmatter,\n          exportLinks: args['export-links'],\n          pretty: args.pretty,\n        });\n        break;",
+        "file_path": "/work/waystation-cli/src/cli.ts",
+        "repo_relative_file_path": "src/cli.ts",
+        "file_name": "cli.ts",
+        "line_no": 116,
+        "grep_meta": "{\"context_lines\":[\"      case 'export':\",\"        await exportCommand(rest[0], {\",\"          ...common,\",\"          out: args.out,\",\"          frontmatter: args.frontmatter,\",\"          exportLinks: args['export-links'],\",\"          pretty: args.pretty,\",\"        });\",\"        break;\"],\"context_start_line\":116,\"matched_index_in_context\":0,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "b338b0fa-2f89-4c4f-8a30-60013b6ee66d",
+        "title": "CLI dispatch",
+        "body": "The `export` case forwards parsed flags to `exportCommand`. No domain logic lives here.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "51a994ab-3af9-494a-8fb2-aedb32217ce3",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "b5c1d233865e8c9d74a97ae0131d4cc6",
+      "order_index": 1,
+      "content_kind": "note",
+      "content_id": "113a48f9-29ae-484f-819a-b816361c9c76",
+      "updated_at": "2026-11-23 13:43:46",
+      "match": {
+        "id": "b5c1d233865e8c9d74a97ae0131d4cc6",
+        "line": "  const { markdown } = await exportMarkdown.process({",
+        "file_path": "/work/waystation-cli/src/commands/export.ts",
+        "repo_relative_file_path": "src/commands/export.ts",
+        "file_name": "export.ts",
+        "line_no": 39,
+        "grep_meta": "{\"context_lines\":[\"  // that `way show` uses, so `way export \\\"TASK-161\\\"` works identically.\",\"  flowId = await resolveFlowId(flowId);\",\"\",\"  const { markdown } = await exportMarkdown.process({\",\"    flowId,\",\"    frontmatter: opts.frontmatter ?? false,\",\"    render: {\"],\"context_start_line\":36,\"matched_index_in_context\":3,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "113a48f9-29ae-484f-819a-b816361c9c76",
+        "title": "Command delegates to the pipeline",
+        "body": "Thin command, fat pipeline. The command only resolves the flow id and picks **render options**.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "ad158bfd-41a2-48c3-9d20-a5bcd378fcfd",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "ab9cd3c015ba37f39edb226e10ca1329",
+      "order_index": 2,
+      "content_kind": "note",
+      "content_id": "e708a484-2ccb-4d45-a3a1-7e0c399035c8",
+      "updated_at": "2026-11-23 13:43:47",
+      "match": {
+        "id": "ab9cd3c015ba37f39edb226e10ca1329",
+        "line": "export const exportMarkdown: Pipeline<ExportCtx> = new Pipeline<ExportCtx>()\n  .pipe(loadAggregate)\n  .pipe(renderMarkdownBody)\n  .pipe(maybeApplyFrontmatter);",
+        "file_path": "/work/waystation-cli/src/pipelines/exportMarkdown.ts",
+        "repo_relative_file_path": "src/pipelines/exportMarkdown.ts",
+        "file_name": "exportMarkdown.ts",
+        "line_no": 46,
+        "grep_meta": "{\"context_lines\":[\"export const exportMarkdown: Pipeline<ExportCtx> = new Pipeline<ExportCtx>()\",\"  .pipe(loadAggregate)\",\"  .pipe(renderMarkdownBody)\",\"  .pipe(maybeApplyFrontmatter);\"],\"context_start_line\":46,\"matched_index_in_context\":0,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "e708a484-2ccb-4d45-a3a1-7e0c399035c8",
+        "title": "Three composable stages",
+        "body": "Each stage takes the context and returns it enriched:\n\n- `loadAggregate` reads the flow from SQLite\n- `renderMarkdownBody` turns it into text\n- `maybeApplyFrontmatter` prepends the JSON blob",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "0ba62bd5-d9ab-4e26-a6b9-43238657bc8d",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "bb5bafbc0507a952c6e9fe402b209a9b",
+      "order_index": 3,
+      "content_kind": "note",
+      "content_id": "98c7c39e-2ee1-44f0-8219-1bd8ba223155",
+      "updated_at": "2026-11-23 13:43:48",
+      "match": {
+        "id": "bb5bafbc0507a952c6e9fe402b209a9b",
+        "line": "     ORDER BY fm.order_index ASC`,",
+        "file_path": "/work/waystation-cli/src/pipelines/buildFlowAggregate.ts",
+        "repo_relative_file_path": "src/pipelines/buildFlowAggregate.ts",
+        "file_name": "buildFlowAggregate.ts",
+        "line_no": 100,
+        "grep_meta": "{\"context_lines\":[\"     LEFT JOIN matches m ON m.id = fm.matches_id\",\"     LEFT JOIN step_contents sc ON sc.id = fm.content_id\",\"     WHERE fm.flows_id = ? AND fm.archived = 0\",\"     ORDER BY fm.order_index ASC`,\",\"    [ctx.flowId],\",\"  );\",\"  return { ...ctx, rawMatches: rows };\"],\"context_start_line\":97,\"matched_index_in_context\":3,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "98c7c39e-2ee1-44f0-8219-1bd8ba223155",
+        "title": "One row per step",
+        "body": "The canonical query. Steps come back ordered by `order_index`, with match and note data nested as JSON.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "bd01f0d9-af3b-43ac-88b7-58ff25f1e6b8",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "a94c531d21c67b1e2b2b889b724898cf",
+      "order_index": 4,
+      "content_kind": "note",
+      "content_id": "7d686856-bf47-457b-bf96-537bca8f201f",
+      "updated_at": "2026-11-23 13:43:48",
+      "match": {
+        "id": "a94c531d21c67b1e2b2b889b724898cf",
+        "line": "  for (const row of ctx.rawMatches ?? []) {\n    const match = row.match ? JSON.parse(row.match) : undefined;\n    const step_content = row.step_content ? JSON.parse(row.step_content) : undefined;\n    const state: FlowMatchState = {\n      flow_match_id: row.flow_match_id,\n      flows_id: row.flows_id,\n      matches_id: row.matches_id ?? undefined,\n      order_index: row.order_index,\n      content_kind: row.content_kind,\n      content_id: row.content_id,\n      updated_at: row.flow_match_updated_at,\n      match,\n      step_content,\n    };\n    jp.set(aggregate, P.appendMatch, state);\n  }",
+        "file_path": "/work/waystation-cli/src/pipelines/buildFlowAggregate.ts",
+        "repo_relative_file_path": "src/pipelines/buildFlowAggregate.ts",
+        "file_name": "buildFlowAggregate.ts",
+        "line_no": 126,
+        "grep_meta": "{\"context_lines\":[\"  for (const row of ctx.rawMatches ?? []) {\",\"    const match = row.match ? JSON.parse(row.match) : undefined;\",\"    const step_content = row.step_content ? JSON.parse(row.step_content) : undefined;\",\"    const state: FlowMatchState = {\",\"      flow_match_id: row.flow_match_id,\",\"      flows_id: row.flows_id,\",\"      matches_id: row.matches_id ?? undefined,\",\"      order_index: row.order_index,\",\"      content_kind: row.content_kind,\",\"      content_id: row.content_id,\",\"      updated_at: row.flow_match_updated_at,\",\"      match,\",\"      step_content,\",\"    };\",\"    jp.set(aggregate, P.appendMatch, state);\",\"  }\"],\"context_start_line\":126,\"matched_index_in_context\":0,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "7d686856-bf47-457b-bf96-537bca8f201f",
+        "title": "Rows become a FlowAggregate",
+        "body": "Nested JSON blobs are parsed, then appended through a JSON pointer. This object is the *format-neutral* input every renderer reads.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "b9b7faa1-2ba8-45b8-bf35-31c6520430a1",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "4aac58ca7fecd1ef4c8c9f8c432eb75b",
+      "order_index": 5,
+      "content_kind": "note",
+      "content_id": "031b64e3-0195-4033-9654-6df215d25f11",
+      "updated_at": "2026-11-23 13:43:49",
+      "match": {
+        "id": "4aac58ca7fecd1ef4c8c9f8c432eb75b",
+        "line": "export function generateFlowMarkdown(",
+        "file_path": "/work/waystation-cli/src/flows/markdown.ts",
+        "repo_relative_file_path": "src/flows/markdown.ts",
+        "file_name": "markdown.ts",
+        "line_no": 75,
+        "grep_meta": "{\"context_lines\":[\" * Render the flow aggregate body as Markdown. Does *not* include\",\" * frontmatter — call {@linkcode addFrontmatter} separately if you want it.\",\" */\",\"export function generateFlowMarkdown(\",\"  aggregate: FlowAggregate,\",\"  opts: RenderOptions = {},\",\"): string {\"],\"context_start_line\":72,\"matched_index_in_context\":3,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "031b64e3-0195-4033-9654-6df215d25f11",
+        "title": "The renderer is a pure function",
+        "body": "Aggregate in, string out. A new format is a sibling of this function. See the [CommonMark spec](https://commonmark.org/) for the output target.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "7a0b312d-e7dc-4fb6-8859-588ec37e10c0",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "bbaf742a70747096476205d7a748bfe5",
+      "order_index": 6,
+      "content_kind": "note",
+      "content_id": "0e6959eb-3a3c-419a-8de5-dceac5b98f73",
+      "updated_at": "2026-11-23 13:43:50",
+      "match": {
+        "id": "bbaf742a70747096476205d7a748bfe5",
+        "line": "        const lang = (grepMeta as { language?: string }).language || 'text';\n        md += '\\n```' + lang + '\\n';\n        ctxLines.forEach((ln: string, idx: number) => {\n          const ln_no = startLine + idx;\n          const safeLine = String(ln || '').replace(/\\r?\\n$/, '');\n          md += `   ${ln_no}: ${safeLine}\\n`;\n        });\n        md += '```\\n';",
+        "file_path": "/work/waystation-cli/src/flows/markdown.ts",
+        "repo_relative_file_path": "src/flows/markdown.ts",
+        "file_name": "markdown.ts",
+        "line_no": 145,
+        "grep_meta": "{\"context_lines\":[\"        const lang = (grepMeta as { language?: string }).language || 'text';\",\"        md += '\\\\n```' + lang + '\\\\n';\",\"        ctxLines.forEach((ln: string, idx: number) => {\",\"          const ln_no = startLine + idx;\",\"          const safeLine = String(ln || '').replace(/\\\\r?\\\\n$/, '');\",\"          md += `   ${ln_no}: ${safeLine}\\\\n`;\",\"        });\",\"        md += '```\\\\n';\"],\"context_start_line\":145,\"matched_index_in_context\":0,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "0e6959eb-3a3c-419a-8de5-dceac5b98f73",
+        "title": "Code context becomes a fenced block",
+        "body": "Line numbers are baked into the text here, so the fence language hint is all a viewer gets for colour.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "e0de4616-5e40-408c-a135-dba5401dc575",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "matches_id": "ad65596000e3edcc6cb692a17313a92b",
+      "order_index": 7,
+      "content_kind": "note",
+      "content_id": "88dad023-479a-4ffb-bc72-8063d73c5d88",
+      "updated_at": "2026-11-23 13:43:51",
+      "match": {
+        "id": "ad65596000e3edcc6cb692a17313a92b",
+        "line": "export async function prettyPrintMarkdown(",
+        "file_path": "/work/waystation-cli/src/flows/renderTerminal.ts",
+        "repo_relative_file_path": "src/flows/renderTerminal.ts",
+        "file_name": "renderTerminal.ts",
+        "line_no": 43,
+        "grep_meta": "{\"context_lines\":[\" *\",\" * Returns which renderer ended up being used; the caller usually ignores it.\",\" */\",\"export async function prettyPrintMarkdown(\",\"  md: string,\",\"  config: RenderConfig = {},\",\"): Promise<RenderOutcome> {\"],\"context_start_line\":40,\"matched_index_in_context\":3,\"language\":\"typescript\"}",
+        "git_repo_root": "aaronmyatt/waystation-cli",
+        "git_commit_sha": "68a2e62b7694de882c747af1372af71f675364e9",
+        "git_branch": "main"
+      },
+      "step_content": {
+        "id": "88dad023-479a-4ffb-bc72-8063d73c5d88",
+        "title": "Terminal pretty-print",
+        "body": "With `--pretty`, markdown goes through the glow / bat / marked-terminal fallback chain.",
+        "file_path": null
+      }
+    },
+    {
+      "flow_match_id": "00000000-0000-4000-8000-000000000009",
+      "flows_id": "afbdebcc-3425-4f9a-9139-733a46988de4",
+      "order_index": 8,
+      "content_kind": "note",
+      "content_id": "00000000-0000-4000-8000-0000000000c9",
+      "updated_at": "2026-11-23 13:43:51",
+      "step_content": {
+        "id": "00000000-0000-4000-8000-0000000000c9",
+        "title": "Where a new format plugs in",
+        "body": "A note-only step: no file behind it.\n\n1. Add a sibling renderer next to `generateFlowMarkdown`\n2. Pick it in the render stage\n3. Leave the aggregate query alone",
+        "file_path": null
+      }
+    }
+  ]
+}
