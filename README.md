@@ -103,6 +103,8 @@ COMMANDS
          [--frontmatter]                Include YAML+JSON frontmatter block.
          [--no-export-links]            Suppress GitHub permalinks.
          [--pretty]                     Pipe through glow/bat/marked-terminal.
+         [--json]                       Render-ready JSON instead of Markdown: steps
+                                        flattened, code context unpacked, notes parsed.
   add    <path>:<line>[:<endLine>]    Capture a line as a new step.
          [--flow ID] [--local-only]
          [--title STR] [--desc STR]     Attach a heading & description.

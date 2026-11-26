@@ -8,6 +8,7 @@
 //   way show   <flowId>                     Pretty-print a flow aggregate.
 //   way export <flowId> [--out FILE] [--frontmatter] [--no-export-links]
 //                                           Render a flow as Markdown.
+//   way export <flowId> --json [--out FILE] Print a flow as render-ready JSON.
 //   way add    <path>:<line>[:<endLine>]    Capture a code line into a flow.
 //              [--flow ID] [--local-only]
 //   way sync                                (stub)
@@ -44,6 +45,8 @@ COMMANDS
          [--frontmatter]                Include YAML+JSON frontmatter block.
          [--no-export-links]            Suppress GitHub permalinks.
          [--pretty]                     Pipe through glow/bat/marked-terminal (no --out).
+         [--json]                       Render-ready JSON instead of Markdown: steps
+                                        flattened, code context unpacked, notes parsed.
   add    <path>:<line>[:<endLine>]    Capture a line as a new step.
          [--flow ID] [--local-only]
          [--title STR] [--desc STR]     Attach a heading & description.
@@ -120,6 +123,7 @@ async function main(): Promise<void> {
           frontmatter: args.frontmatter,
           exportLinks: args['export-links'],
           pretty: args.pretty,
+          json: args.json,
         });
         break;
       case 'add':

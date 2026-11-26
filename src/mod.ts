@@ -59,6 +59,17 @@ export {
 } from './flows/crud.ts';
 export { getGitInfo, parseGitHubRepo } from './flows/git.ts';
 export { addFrontmatter, generateFlowMarkdown, type RenderOptions } from './flows/markdown.ts';
+// A flow flattened for rendering — what `way export --json` prints.
+export { parseBlocks, parseInline, toFlowView } from './flows/view.ts';
+export type {
+  FlowView,
+  FlowViewInput,
+  MatchViewInput,
+  NoteBlock,
+  NoteSpan,
+  StepView,
+  StepViewInput,
+} from './flows/view.ts';
 
 // ── Platform abstraction ─────────────────────────────────────────────────
 // Runtime-specific primitives behind injectable interfaces (TASK-12/13).
@@ -77,6 +88,8 @@ export { buildFlowAggregate } from './pipelines/buildFlowAggregate.ts';
 export type { AggCtx } from './pipelines/buildFlowAggregate.ts';
 export { exportMarkdown } from './pipelines/exportMarkdown.ts';
 export type { ExportCtx } from './pipelines/exportMarkdown.ts';
+export { exportJson } from './pipelines/exportJson.ts';
+export type { ExportJsonCtx } from './pipelines/exportJson.ts';
 export { pullTableRecords, pushTableRecords } from './pipelines/sync.ts';
 export type { PullCtx, PushCtx } from './pipelines/sync.ts';
 
